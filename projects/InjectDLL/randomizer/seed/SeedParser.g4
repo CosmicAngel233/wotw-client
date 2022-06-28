@@ -20,13 +20,10 @@ metadataDef:
     '#' metadataKey (':' WHITESPACE* metadataValue)?;
 
 metadataKey:
-    string;
+    ~(':' | NEWLINE)+;
 
 metadataValue:
-    string;
-
-spawnDef:
-    SPAWN_DEF WHITESPACE* commaSeparatedNumbers;
+    ~(NEWLINE)+;
 
 triggerLine:
     trigger '|' action;
@@ -53,32 +50,33 @@ actionType:
     INT;
 
 actionArgument:
-    expression |
     number |
+    expression |
+    identifier |
     commaSeparatedNumbers |
     '"' interpolatableString '"' |
-    '"' string '"' |
-    // TODO: Remove once quotes for strings are required
-    interpolatableString |
-    string;
+    '"' string '"';
 
 commaSeparatedNumbers:
     number (',' WHITESPACE* number)*;
 
-commaSeparatedStrings:
-    commaSeparatedString (',' WHITESPACE* commaSeparatedString)*;
-
-commaSeparatedString:
-    ~(',' | NEWLINE)+;
+identifier:
+    IDENTIFIER_CHAR+;
 
 string:
+    ~(NEWLINE)+;
+
+interpolatableStringPart:
     ~('"' | '$[' | '$(' | NEWLINE)+;
 
 interpolatableString:
-    string* ( interpolation ( string+ interpolation )* string* )?;
+    interpolatableStringPart* ( interpolation ( interpolatableStringPart+ interpolation )* interpolatableStringPart* )?;
+
+expressionKey:
+    identifier;
 
 expression:
-    string comparison number;
+    expressionKey comparison number;
 
 comparison:
     EQ | NEQ | GT | LT | GTE | LTE;

@@ -121,7 +121,8 @@ set(
         "randomizer/ipc/base_handlers.cpp"
         "randomizer/ipc/hierarchy.cpp"
         "randomizer/ipc/ipc.cpp"
-        "randomizer/seed_parser/parser.cpp"
+        "randomizer/seed/reader.cpp"
+        "randomizer/seed/loader.cpp"
         "randomizer/render/shaders.cpp"
         "randomizer/render/sprite.cpp"
         "randomizer/render/textures.cpp"
@@ -196,10 +197,11 @@ set(
         "randomizer/input/simulator.h"
         "randomizer/ipc/base_handlers.h"
         "randomizer/ipc/ipc.h"
-        "randomizer/seed_parser/parser.h"
-        "randomizer/seed_parser/SeedLexer.g4"
-        "randomizer/seed_parser/SeedParser.g4"
-        "randomizer/seed_parser/parser.h"
+        "randomizer/seed/SeedLexer.g4"
+        "randomizer/seed/SeedParser.g4"
+        "randomizer/seed/reader.h"
+        "randomizer/seed/loader.h"
+        "randomizer/seed/data.h"
         "randomizer/render/shaders.h"
         "randomizer/render/sprite.h"
         "randomizer/render/textures.h"
@@ -229,18 +231,26 @@ endif()
 set(ANTLR4_JAR_LOCATION ${CMAKE_BINARY_DIR}/antlr-4.10.1-complete.jar)
 
 find_package(antlr4-runtime REQUIRED)
-# find_path(ANTLR_FIND NAMES FindANTLR.cmake PATHS ${CONAN_INCLUDE_DIRS_antlr4-cppruntime})
-# message(INFO "adding '${ANTLR_FIND}'")
-# list(APPEND CMAKE_MODULE_PATH "${ANTLR_FIND}")
-# find_package(ANTLR REQUIRED)
-# 
-# antlr_target(SeedLexer ${CMAKE_CURRENT_SOURCE_DIR}randomizer/seed_parser/SeedLexer.g4 LEXER
-#              PACKAGE seed_generator)
-# 
-# antlr_target(SeedParser ${CMAKE_CURRENT_SOURCE_DIR}randomizer/seed_parser/SeedParser.g4 PARSER
-#              PACKAGE seed_generator
-#              DEPENDS_ANTLR SeedLexer
-#              COMPILE_FLAGS -lib ${ANTLR_SeedLexer_OUTPUT_DIR})
+
+message(STATUS "Generating seed lexer and parser")
+execute_process(
+        COMMAND java -jar ${ANTLR4_JAR_LOCATION}
+        -Dlanguage=Cpp
+        -o ${CMAKE_CURRENT_SOURCE_DIR}/randomizer/seed/generated
+        -package randomizer::seed::language
+        -no-listener
+        -visitor
+        ${CMAKE_CURRENT_SOURCE_DIR}/randomizer/seed/SeedParser.g4
+        ${CMAKE_CURRENT_SOURCE_DIR}/randomizer/seed/SeedLexer.g4
+        RESULT_VARIABLE exit_code
+)
+
+if(NOT exit_code EQUAL "0")
+   message(FATAL_ERROR "Failed to generate seed lexer and parser")
+endif()
+
+file(GLOB_RECURSE ANTLR_GENERATED_HEADERS ${PROJECT_DIR}/randomizer/seed/generated *.h)
+file(GLOB_RECURSE ANTLR_GENERATED_SOURCES ${PROJECT_DIR}/randomizer/seed/generated *.cpp)
 
 add_library(
         ${PROJECT_NAME}
@@ -250,6 +260,8 @@ add_library(
         ${MISC_FILES}
         ${ANTLR_SeedLexer_CXX_OUTPUTS}
         ${ANTLR_SeedParser_CXX_OUTPUTS}
+        ${ANTLR_GENERATED_HEADERS}
+        ${ANTLR_GENERATED_SOURCES}
 )
 
 target_compile_definitions(
