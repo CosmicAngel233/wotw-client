@@ -59,10 +59,12 @@ namespace modloader {
         }
 
         Initialization* start = nullptr;
-        void initialization_callbacks() {
+        void initialization_callbacks(InitializationTime when) {
             auto it = start;
             while (it != nullptr) {
-                it->call();
+                if (it->when == when) {
+                    it->call();
+                }
                 it = it->next;
             }
         }
@@ -107,8 +109,8 @@ namespace modloader {
         trace(MessageType::Debug, 5, group, message);
     }
 
-    Initialization::Initialization(Initialization::init p_call) :
-            next(start), call(p_call) {
+    Initialization::Initialization(Initialization::init p_call, InitializationTime when) :
+            next(start), call(p_call), when(when) {
         start = this;
     }
 
@@ -149,6 +151,8 @@ namespace modloader {
         auto unity_version = il2cpp::convert_csstring(app::methods::UnityEngine::Application::get_unityVersion());
         trace(MessageType::Info, 5, "initialize", format("Application %s injected (%s)[%s].", product.c_str(), version.c_str(), unity_version.c_str()));
 
+        initialization_callbacks(InitializationTime::AFTER_INJECTION);
+
         while (!shutdown_thread) {
             console::console_poll();
         }
@@ -183,7 +187,7 @@ namespace modloader {
     IL2CPP_INTERCEPT(GameController, void, FixedUpdate, (app::GameController * this_ptr)) {
         if (!initialized) {
             trace(MessageType::Info, 5, "initialize", "Calling initialization callbacks.");
-            initialization_callbacks();
+            initialization_callbacks(InitializationTime::GAME_INIT);
             initialized = true;
         }
 
