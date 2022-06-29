@@ -28,8 +28,9 @@ projects/SeedGen/target*
 projects/SeedGen/*.wotwr
 Web/*
 *.user
-build
+/build
+/cmake-build-debug
 out/*
 projects/Injector/bin/*
 projects/Injector/obj/*
-projects/InjectDLL/randomizer/seed/parser/generated/
+projects/InjectDLL/randomizer/seed/generated/
