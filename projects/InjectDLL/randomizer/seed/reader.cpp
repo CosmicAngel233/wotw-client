@@ -1,11 +1,66 @@
 #include "reader.h"
 #include <string>
+#include <regex>
 #include <Common/ext.h>
 
 using namespace randomizer::seed::data;
 using namespace antlr4;
 
 namespace randomizer::seed::reader {
+    namespace {
+        Comparison read_comparison(antlr4::ParserRuleContext *ctx) {
+            auto str = ctx->getText();
+            if (str == "=" || str == "==") {
+                return Comparison::EQ;
+            } else if (str == "!=") {
+                return Comparison::NEQ;
+            } else if (str == ">=") {
+                return Comparison::GTE;
+            } else if (str == ">") {
+                return Comparison::GT;
+            } else if (str == "<=") {
+                return Comparison::LTE;
+            } else if (str == "<") {
+                return Comparison::LT;
+            }
+
+            throw ParseError("Unknown comparison symbol");
+        }
+
+        int read_int(antlr4::ParserRuleContext *ctx) {
+            try {
+                return std::stoi(ctx->getText());
+            } catch (const std::invalid_argument &e) {
+                throw ParseError("Invalid integer");
+            } catch (const std::out_of_range &e) {
+                throw ParseError("Integer out of range");
+            }
+        }
+
+        double read_double(antlr4::ParserRuleContext *ctx) {
+            try {
+                return std::stod(ctx->getText());
+            } catch (const std::invalid_argument &e) {
+                throw ParseError("Invalid double");
+            } catch (const std::out_of_range &e) {
+                throw ParseError("Double out of range");
+            }
+        }
+    }
+
+    /**
+     * Called for each line. This catches ParseErrors and adds them to the error vector.
+     * @param ctx
+     * @return
+     */
+    std::any SeedDataReader::visitLine(SeedParser::LineContext *ctx) {
+        try {
+            return SeedParserBaseVisitor::visitLine(ctx);
+        } catch (ParseError &error) {
+            this->addError(ctx, error.message);
+        }
+    }
+
     /**
      * We found a metadata definition line (e.g. #something: foo bar)
      * @param ctx
@@ -22,12 +77,23 @@ namespace randomizer::seed::reader {
      * @return
      */
     std::any SeedDataReader::visitTriggerLine(SeedParser::TriggerLineContext *ctx) {
-        auto str = ctx->trigger()->uberGroup()->getText();
-        auto location_group = std::stoi(str);
-        auto location_state = std::stoi(ctx->trigger()->uberState()->getText());
+        auto location_group = read_int(ctx->trigger()->uberGroup());
+        auto location_state = ctx->trigger()->uberState();
 
-        Location location {location_group, location_state};
-        this->visitAction(location, ctx->action());
+        if (location_state->uberStateCondition()) {
+            auto condition = location_state->uberStateCondition();
+
+            Location location{
+                location_group,
+                read_int(condition->uberStateId()),
+                read_comparison(condition->comparison()),
+                read_double(condition->number()),
+            };
+            this->visitAction(location, ctx->action());
+        } else {
+            Location location{location_group, read_int(location_state->uberStateId())};
+            this->visitAction(location, ctx->action());
+        }
 
         return nullptr;
     }
@@ -44,14 +110,19 @@ namespace randomizer::seed::reader {
         auto arguments = ctx->actionArgument();
 
         switch (static_cast<ActionType>(action_int)) {
-            case ActionType::SetUberState:
-                if (arguments.size() != 4) {
-                    this->addError(ctx, "Expected exactly 4 arguments for SetUberState command");
-                    return;
+            case ActionType::SpiritLight:
+                if (arguments.empty()) {
+                    throw ParseError("Expected 1 argument for SpiritLight command", ctx);
                 }
 
-                auto uber_group = std::stoi(arguments[0]->getText());
-                auto uber_state = std::stoi(arguments[1]->getText());
+
+            case ActionType::SetUberState:
+                if (arguments.size() < 4) {
+                    throw ParseError("Expected 4 arguments for SetUberState command", ctx);
+                }
+
+                auto uber_group = read_int(arguments[0]);
+                auto uber_state = read_int(arguments[1]);
                 auto uber_type_name = arguments[2]->getText();
                 auto value_string = arguments[3]->getText();
                 auto value = parseDoubleFromUberTypeAndValue(ctx, uber_type_name, value_string);
@@ -62,7 +133,8 @@ namespace randomizer::seed::reader {
         }
     }
 
-    double SeedDataReader::parseDoubleFromUberTypeAndValue(antlr4::ParserRuleContext *ctx, const std::string& type_name, std::string value) {
+    double SeedDataReader::parseDoubleFromUberTypeAndValue(antlr4::ParserRuleContext *ctx, const std::string &type_name,
+                                                           const std::string& value) {
         if (type_name == "float") {
             return static_cast<double>(std::stof(value));
         } else if (type_name == "int" || type_name == "byte") {
@@ -71,19 +143,19 @@ namespace randomizer::seed::reader {
             return value == "true" ? 1.0 : 0.0;
         }
 
-        this->addError(ctx, format("Unknown uber state type '%s'", type_name.c_str()));
+        this->addError(ctx, format("Unknown uber state type '%s', using 0.0 as value", type_name.c_str()));
 
         return 0.0;
     }
 
     // region Helper Functions
 
-    void SeedDataReader::addError(const Error& error) {
+    void SeedDataReader::addError(const Error &error) {
         this->errors.push_back(error);
     }
 
     void SeedDataReader::addError(size_t line, size_t column, std::string_view message) {
-        this->addError(Error {line, column, message.data()});
+        this->addError(Error{line, column, message.data()});
     }
 
     void SeedDataReader::addError(antlr4::Token *token, std::string_view message) {

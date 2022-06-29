@@ -9,12 +9,47 @@
 
 namespace randomizer::seed::data {
     enum class ActionType : int {
+        SpiritLight = 0,
         SetUberState = 8,
     };
 
-    typedef std::pair<int, int> Location;
+    enum class Comparison {
+        NONE,
+        EQ,
+        NEQ,
+        GTE,
+        LTE,
+        GT,
+        LT,
+    };
 
-    struct SetUberStateAction {
+    struct Location {
+        int group;
+        int state_id;
+
+        Comparison comparison;
+        double condition_value;
+
+        Location(int group, int stateId)
+            : group(group),
+              state_id(stateId),
+              comparison(Comparison::NONE),
+              condition_value(0.0) {}
+
+        Location(int group, int stateId, Comparison comparison, double condition_value)
+            : group(group),
+              state_id(stateId),
+              comparison(comparison),
+              condition_value(condition_value) {}
+    };
+
+    struct SpiritLightAction { // 0
+        int amount;
+
+        explicit SpiritLightAction(int amount) : amount(amount) {}
+    };
+
+    struct SetUberStateAction { // 8
         uber_states::UberState uber_state;
         double value;
 
@@ -26,6 +61,7 @@ namespace randomizer::seed::data {
     };
 
     typedef std::variant<
+        SpiritLightAction,
         SetUberStateAction
     > Action;
 
