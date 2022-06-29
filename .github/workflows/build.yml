@@ -35,6 +35,10 @@ jobs:
       - name: Install Conan
         id: conan
         uses: turtlebrowser/get-conan@main
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
       - name: Conan version
         run: echo "${{ steps.conan.outputs.version }}"
       - name: Generate solution
