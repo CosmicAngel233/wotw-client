@@ -19,7 +19,9 @@ namespace randomizer::seed::reader {
         antlr4::ParserRuleContext *ctx;
 
         explicit ParseError(const std::string &message) : message(message) {}
-        ParseError(const std::string &message, antlr4::ParserRuleContext *ctx) : message(message) ctx(ctx) {}
+        ParseError(const std::string &message, antlr4::ParserRuleContext *ctx) : message(message) {
+            this->ctx = ctx;
+        }
     };
 
     class SeedDataReader : public SeedParserBaseVisitor {
@@ -30,7 +32,7 @@ namespace randomizer::seed::reader {
         std::any visitLine(SeedParser::LineContext *ctx) override;
         std::any visitMetadataDef(SeedParser::MetadataDefContext *ctx) override;
         std::any visitTriggerLine(SeedParser::TriggerLineContext *ctx) override;
-        void visitAction(Location location, SeedParser::ActionContext *ctx);
+        void visitAction(Location location, std::optional<LocationCondition> condition, SeedParser::ActionContext *ctx);
 
         const std::vector<Error>& getErrors() {
             return errors;
