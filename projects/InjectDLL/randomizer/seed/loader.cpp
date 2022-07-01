@@ -1,13 +1,12 @@
 #include "data.h"
+#include "generated/SeedLexer.h"
+#include "generated/SeedParser.h"
 #include "reader.h"
 #include <Common/ext.h>
-#include <Il2CppModLoader/windows_api/console.h>
 #include <Il2CppModLoader/common.h>
+#include <Il2CppModLoader/windows_api/console.h>
 #include <antlr4-runtime.h>
 #include <chrono>
-#include "generated/SeedParser.h"
-#include "generated/SeedLexer.h"
-
 
 using namespace antlr4;
 using namespace randomizer::seed::reader;

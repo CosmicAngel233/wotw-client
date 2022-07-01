@@ -1,12 +1,12 @@
 #pragma once
 
-#include <map>
-#include <unordered_map>
-#include <string>
-#include <variant>
-#include <optional>
 #include <uber_states/uber_state_helper.h>
 #include <uber_states/uber_state_interface.h>
+#include <map>
+#include <optional>
+#include <string>
+#include <unordered_map>
+#include <variant>
 
 namespace randomizer::seed::data {
     enum class ActionType : int {
@@ -28,10 +28,10 @@ namespace randomizer::seed::data {
         int group;
         int state_id;
 
-        bool operator<(const Location &other) const {
+        bool operator<(const Location& other) const {
             return this->group == other.group
-                   ? this->state_id < other.state_id
-                   : this->group < other.group;
+                    ? this->state_id < other.state_id
+                    : this->group < other.group;
         }
 
         double get_value() const {
@@ -39,17 +39,30 @@ namespace randomizer::seed::data {
         }
     };
 
+    enum class LocationConditionBehavior {
+        TriggerOnce,
+        TriggerAlways,
+    };
+
     struct LocationCondition {
         Comparison comparison;
         double condition_value;
+        LocationConditionBehavior behavior;
 
-        LocationCondition() : comparison(Comparison::NONE), condition_value(0.0) {};
+        LocationCondition() :
+                comparison(Comparison::NONE), condition_value(0.0) {
+            behavior = LocationConditionBehavior::TriggerAlways;
+        };
 
-        LocationCondition(Comparison comparison, double condition_value)
-            : comparison(comparison),
-              condition_value(condition_value) {};
+        LocationCondition(Comparison comparison, double condition_value) :
+                comparison(comparison),
+                condition_value(condition_value){
+                    behavior = comparison == Comparison::NONE
+                        ? LocationConditionBehavior::TriggerAlways
+                        : LocationConditionBehavior::TriggerOnce;
+                };
 
-        bool satisfied(const Location &location) const {
+        bool satisfied(const Location& location) const {
             if (comparison == Comparison::NONE) {
                 return true;
             }
@@ -93,7 +106,8 @@ namespace randomizer::seed::data {
         int amount;
 
     public:
-        explicit SpiritLightAction(int amount) : amount(amount) {};
+        explicit SpiritLightAction(int amount) :
+                amount(amount){};
     };
 
     class SetUberStateAction : public Action { // 8
@@ -102,27 +116,35 @@ namespace randomizer::seed::data {
         double value;
 
     public:
-        SetUberStateAction(const uber_states::UberState &uber_state, double value) :
-            uber_state(uber_state), value(value) {};
+        SetUberStateAction(const uber_states::UberState& uber_state, double value) :
+                uber_state(uber_state), value(value){};
 
         SetUberStateAction(int group, int state, double value) :
-            uber_state(uber_states::UberState(group, state)), value(value) {};
+                uber_state(uber_states::UberState(group, state)), value(value){};
     };
 
     class ActionWithCondition {
     public:
+        /** The action to execute */
         std::unique_ptr<Action> action;
+
+        /** An optional condition the location has to meet before the action is executed */
         std::optional<LocationCondition> condition;
+
+        /** How often this action was executed */
+        int trigger_count = 0;
 
         explicit ActionWithCondition(std::unique_ptr<Action>&& action) {
             this->action = std::move(action);
         };
 
-        ActionWithCondition(std::unique_ptr<Action>&& action, std::optional<LocationCondition> condition) : ActionWithCondition(std::move(action)) {
+        ActionWithCondition(std::unique_ptr<Action>&& action, std::optional<LocationCondition> condition) :
+                ActionWithCondition(std::move(action)) {
             this->condition = condition;
         };
 
-        ActionWithCondition(std::unique_ptr<Action>&& action, const LocationCondition &condition) : ActionWithCondition(std::move(action)) {
+        ActionWithCondition(std::unique_ptr<Action>&& action, const LocationCondition& condition) :
+                ActionWithCondition(std::move(action)) {
             this->condition = condition;
         };
     };
@@ -131,4 +153,4 @@ namespace randomizer::seed::data {
         std::unordered_map<std::string, std::string> meta;
         std::multimap<Location, ActionWithCondition> triggers;
     };
-}
+} // namespace randomizer::seed::data
