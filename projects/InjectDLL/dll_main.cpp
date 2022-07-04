@@ -106,6 +106,14 @@ IL2CPP_INTERCEPT(, GameController, void, FixedUpdate, (app::GameController* this
     on_fixed_update(this_ptr, TimeUtility::get_fixedDeltaTime());
 }
 
+STATIC_IL2CPP_BINDING(, TimeUtility, float, get_timeScale, ());
+IL2CPP_INTERCEPT(, GameController, void, TimeScale, (app::GameController* this_ptr))
+{
+    GameController::TimeScale(this_ptr);
+    ipc::update_pipe();
+    on_fixed_update(this_ptr, TimeUtility::get_timeScale());
+}
+
 //---------------------------------------------------Actual Functions------------------------------------------------
 
 app::GameController* get_game_controller()
